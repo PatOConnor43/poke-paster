@@ -3,10 +3,6 @@ use std::{collections::BTreeSet, error::Error};
 use reqwest::Url;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
-
     let r = regex_lite::Regex::new(r"https://pokepast\.es/([0-9a-f]{16})")?;
     let url = Url::parse("https://old.reddit.com/r/stunfisk/search/?q=pokepast.es&sort=new")?;
     let client = reqwest::blocking::ClientBuilder::default()
