@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let mut existing_ids = std::fs::read_to_string("ids")?
+    let mut existing_ids = std::fs::read_to_string("../ids")?
         .split("\n")
         .filter(|id| !id.is_empty())
         .map(|id| id.to_string())
@@ -26,7 +26,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     existing_ids.extend(paste_ids);
     std::fs::write(
-        "ids",
+        "../ids",
         existing_ids
             .iter()
             .fold(String::new(), |a, b| format!("{}{}\n", a, b)),
