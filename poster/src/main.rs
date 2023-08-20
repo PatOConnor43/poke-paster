@@ -1,10 +1,15 @@
-use image::{GenericImage, GenericImageView, Pixel};
+use image::{GenericImageView, ImageOutputFormat, Pixel};
 use rand::seq::IteratorRandom;
+use reqwest::{
+    header::{HeaderMap, HeaderValue},
+    StatusCode,
+};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::{
     error::Error,
     fs::File,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, Cursor},
 };
 
 const FILENAME: &str = "../ids";
@@ -20,7 +25,15 @@ pub struct Paste {
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let names = get_names()?;
+    let domain = std::env::var("MASTODON_DOMAIN").expect("Missing Mastodon domain env var");
+    let token = std::env::var("ACCESS_TOKEN").expect("Missing access token env var");
+    let f = File::open(FILENAME)?;
+    let f = BufReader::new(f);
+
+    let lines = f.lines().map(|l| l.expect("Couldn't read line"));
+
+    let paste_id = lines.choose(&mut rand::thread_rng()).unwrap();
+    let names = get_names(&paste_id)?;
 
     // Use the open function to load an image from a Path.
     // `open` returns a `DynamicImage` on success.
@@ -29,11 +42,76 @@ fn main() -> Result<(), Box<dyn Error>> {
     draw_trainer(&mut img);
     draw_badges(&mut img);
 
-    // The dimensions method returns the images width and height.
-    println!("dimensions {:?}", img.dimensions());
-
     // Write the contents of this image to the Writer in PNG format.
     img.save("assets/background3.png")?;
+    let mut writing_cursor = Cursor::new(vec![]);
+    img.write_to(&mut writing_cursor, ImageOutputFormat::Png)?;
+    let b = writing_cursor.into_inner();
+
+    let client = reqwest::blocking::ClientBuilder::default().build()?;
+    let file_part = reqwest::blocking::multipart::Part::bytes(b)
+        .file_name("background.png")
+        .mime_str("image/png")?;
+    let form = reqwest::blocking::multipart::Form::default().part("file", file_part);
+    let mut headers: HeaderMap<HeaderValue> = HeaderMap::default();
+    headers.insert(
+        reqwest::header::AUTHORIZATION,
+        format!("Bearer {}", token).parse()?,
+    );
+    headers.insert("Idempotency-Key", paste_id.parse()?);
+
+    let upload_response = client
+        .post(format!("{}/api/v2/media", domain))
+        .headers(headers.clone())
+        .multipart(form)
+        .send()?;
+    let text = upload_response.text()?;
+    let upload_json = serde_json::from_str::<Value>(&text)?;
+
+    let id = upload_json
+        .get("id")
+        .and_then(|value| value.as_str())
+        .and_then(|value| Some(value.to_string()));
+    let id = id.unwrap();
+
+    std::thread::sleep(std::time::Duration::from_secs(5));
+    let status_response = client
+        .get(format!("{}/api/v1/media/{}", domain, id))
+        .headers(headers.clone())
+        .send()?;
+    match status_response.status() {
+        StatusCode::OK => println!("Uploaded attachment"),
+        StatusCode::PARTIAL_CONTENT => {
+            println!("Upload still processing. Retrying.");
+
+            std::thread::sleep(std::time::Duration::from_secs(5));
+            let status_response = client
+                .get(format!("{}/api/v1/media/{}", domain, id))
+                .headers(headers.clone())
+                .send()?;
+            if status_response.status() != 200 {
+                panic!(
+                    "Status check failed after retry. Giving up. HTTP {}",
+                    status_response.status()
+                )
+            }
+        }
+        _ => panic!(
+            "Unexpected status code when checking upload. HTTP {}",
+            status_response.status()
+        ),
+    }
+
+    let form = reqwest::blocking::multipart::Form::default()
+        .text("status", "Test")
+        .text("visibility", "private")
+        .text("media_ids[]", id);
+    let status_response = client
+        .post(format!("{}/api/v1/statuses", domain))
+        .headers(headers)
+        .multipart(form)
+        .send()?;
+    dbg!(status_response.json::<Value>()?);
 
     Ok(())
 }
@@ -94,16 +172,10 @@ fn draw_pokemon(names: Vec<String>, img: &mut image::RgbaImage) {
     }
 }
 
-fn get_names() -> Result<Vec<String>, Box<dyn Error>> {
-    let f = File::open(FILENAME)?;
-    let f = BufReader::new(f);
-
-    let lines = f.lines().map(|l| l.expect("Couldn't read line"));
-
-    let line = lines.choose(&mut rand::thread_rng()).unwrap();
+fn get_names(id: &str) -> Result<Vec<String>, Box<dyn Error>> {
     let client = reqwest::blocking::ClientBuilder::default().build()?;
     let response = client
-        .get(format!("https://pokepast.es/{}/json", line))
+        .get(format!("https://pokepast.es/{}/json", id))
         .send()?
         .text()?;
     let paste: Paste = serde_json::from_str(&response)?;
