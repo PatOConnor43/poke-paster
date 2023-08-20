@@ -121,7 +121,7 @@ Featuring:{}
 
     let form = reqwest::blocking::multipart::Form::default()
         .text("status", post_body_text)
-        .text("visibility", "private")
+        .text("visibility", "public")
         .text("media_ids[]", id);
     let status_response = client
         .post(format!("{}/api/v1/statuses", domain))
