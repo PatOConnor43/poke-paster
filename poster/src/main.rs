@@ -12,7 +12,7 @@ use std::{
     io::{BufRead, BufReader, Cursor},
 };
 
-const FILENAME: &str = "../ids";
+const FILENAME: &str = "ids";
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,11 +34,17 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let paste_id = lines.choose(&mut rand::thread_rng()).unwrap();
     let names = get_names(&paste_id)?;
-    let post_body_text = format!(r"
+    let post_body_text = format!(
+        r"
 New Poke Paste!
 https://pokepast.es/{}
 Featuring:{}
-", paste_id, names.iter().fold(String::from(""), |a, b| format!("{}\n- {}", a, b)));
+",
+        paste_id,
+        names
+            .iter()
+            .fold(String::from(""), |a, b| format!("{}\n- {}", a, b))
+    );
 
     // Use the open function to load an image from a Path.
     // `open` returns a `DynamicImage` on success.
