@@ -16,8 +16,8 @@ jobs:
         with:
           toolchain: stable
       - uses: actions-rs/cargo@v1
-        with:
         env:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
           MASTODON_DOMAIN: https://botsin.space
+        with:
           command: run -p poster
