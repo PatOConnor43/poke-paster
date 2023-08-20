@@ -1,0 +1,23 @@
+name: Make Mastodon Post
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron:  '* 7 * * *'
+
+jobs:
+  scheduled:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: actions-rs/cargo@v1
+        with:
+        env:
+          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+          MASTODON_DOMAIN: https://botsin.space
+          command: run -p poster
