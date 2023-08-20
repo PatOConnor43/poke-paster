@@ -48,7 +48,7 @@ Featuring:{}
 
     // Use the open function to load an image from a Path.
     // `open` returns a `DynamicImage` on success.
-    let mut img = image::open("assets/background-named.png")?.to_rgba8();
+    let mut img = image::open("poster/assets/background-named.png")?.to_rgba8();
     draw_pokemon(names, &mut img);
     draw_trainer(&mut img);
     draw_badges(&mut img);
@@ -60,7 +60,7 @@ Featuring:{}
         ratioed_image.put_pixel(x, y, *value);
     }
 
-    ratioed_image.save("assets/generated.png")?;
+    ratioed_image.save("poster/assets/generated.png")?;
     let mut writing_cursor = Cursor::new(vec![]);
     ratioed_image.write_to(&mut writing_cursor, ImageOutputFormat::Png)?;
     let b = writing_cursor.into_inner();
@@ -138,7 +138,7 @@ fn draw_badges(img: &mut image::RgbaImage) {
     let xinitial = 39;
     let yinitial = 16;
     for i in 0..8 {
-        let badge = image::open(format!("assets/badges/kalos/{}.png", i)).unwrap();
+        let badge = image::open(format!("poster/assets/badges/kalos/{}.png", i)).unwrap();
         for (x, y, value) in badge.pixels() {
             img.get_pixel_mut(
                 xinitial + x + (xoffset * i),
@@ -150,7 +150,7 @@ fn draw_badges(img: &mut image::RgbaImage) {
 }
 
 fn draw_trainer(img: &mut image::RgbaImage) {
-    let trainer = image::open("assets/trainers/1150.png").unwrap();
+    let trainer = image::open("poster/assets/trainers/1150.png").unwrap();
     let padding = 5;
     // This draws the trainer from the right side of the image in an attempt to make sure we don't
     // go out of bounds.
@@ -164,7 +164,7 @@ fn draw_trainer(img: &mut image::RgbaImage) {
 }
 
 fn draw_pokemon(names: Vec<String>, img: &mut image::RgbaImage) {
-    let default = image::open("assets/placeholder.png").unwrap();
+    let default = image::open("poster/assets/placeholder.png").unwrap();
     let xoffset = 55;
     let yoffset = 36;
     let mut i = 0;
@@ -177,7 +177,7 @@ fn draw_pokemon(names: Vec<String>, img: &mut image::RgbaImage) {
             _ => 1,
         };
         let portrait =
-            image::open(format!("assets/pokemon/{}.png", name)).unwrap_or(default.clone());
+            image::open(format!("poster/assets/pokemon/{}.png", name)).unwrap_or(default.clone());
         for (x, y, value) in portrait.pixels() {
             img.put_pixel(
                 7 + x + (column * xoffset),
@@ -1918,7 +1918,7 @@ mod test {
     #[test]
     fn t() -> Result<(), Box<dyn Error>> {
         for name in ALL_NAMES.iter() {
-            std::fs::metadata(format!("assets/pokemon/{}.png", name))
+            std::fs::metadata(format!("poster/assets/pokemon/{}.png", name))
                 .expect(format!("Missing file for {}", name).as_str());
         }
         Ok(())
