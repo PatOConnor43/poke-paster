@@ -1,4 +1,4 @@
-use image::{GenericImageView, ImageOutputFormat, Pixel};
+use image::{GenericImage, GenericImageView, ImageOutputFormat, Pixel};
 use rand::seq::IteratorRandom;
 use reqwest::{
     header::{HeaderMap, HeaderValue},
@@ -34,18 +34,29 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let paste_id = lines.choose(&mut rand::thread_rng()).unwrap();
     let names = get_names(&paste_id)?;
+    let post_body_text = format!(r"
+New Poke Paste!
+https://pokepast.es/{}
+Featuring:{}
+", paste_id, names.iter().fold(String::from(""), |a, b| format!("{}\n- {}", a, b)));
 
     // Use the open function to load an image from a Path.
     // `open` returns a `DynamicImage` on success.
-    let mut img = image::open("assets/background.png")?.to_rgba8();
+    let mut img = image::open("assets/background-named.png")?.to_rgba8();
     draw_pokemon(names, &mut img);
     draw_trainer(&mut img);
     draw_badges(&mut img);
 
-    // Write the contents of this image to the Writer in PNG format.
-    img.save("assets/background3.png")?;
+    // Mastodon preview shows a 16:9 ratio so we're going to create a new image in that ratio so
+    // the preview fits well.
+    let mut ratioed_image = image::DynamicImage::new_rgba8(285, 171);
+    for (x, y, value) in img.enumerate_pixels() {
+        ratioed_image.put_pixel(x, y, *value);
+    }
+
+    ratioed_image.save("assets/generated.png")?;
     let mut writing_cursor = Cursor::new(vec![]);
-    img.write_to(&mut writing_cursor, ImageOutputFormat::Png)?;
+    ratioed_image.write_to(&mut writing_cursor, ImageOutputFormat::Png)?;
     let b = writing_cursor.into_inner();
 
     let client = reqwest::blocking::ClientBuilder::default().build()?;
@@ -103,7 +114,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let form = reqwest::blocking::multipart::Form::default()
-        .text("status", "Test")
+        .text("status", post_body_text)
         .text("visibility", "private")
         .text("media_ids[]", id);
     let status_response = client
